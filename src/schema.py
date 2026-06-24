@@ -30,6 +30,13 @@ class AssistantMessage(TypedDict):
 Message = Union[UserMessage, AssistantMessage]
 
 
+class UsageMetrics(TypedDict):
+    input_tokens: int
+    output_tokens: int
+    cached_tokens: int
+    cost_usd: float
+
+
 class ResearchSession(TypedDict):
     """Persisted state for one research run, written to state/sessions.json."""
     session_id: str
@@ -37,3 +44,4 @@ class ResearchSession(TypedDict):
     messages: list[Message]
     report: str | None   # None until agent produces its final end_turn response
     created_at: str      # ISO 8601 timestamp, e.g. "2026-06-23T14:00:00Z"
+    usage: UsageMetrics | None  # token counts + cost; None for sessions saved before this field existed

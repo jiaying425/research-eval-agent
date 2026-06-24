@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 load_dotenv("config/.env")
 
 from src.agent import run_research_agent  # noqa: E402  (must load .env first)
-from src.schema import ResearchSession  # noqa: E402
+from src.schema import ResearchSession, UsageMetrics  # noqa: E402
 
 STATE_PATH = "state/sessions.json"
 
@@ -62,6 +62,7 @@ if st.session_state.stage == "topic_input":
             messages=[],
             report=None,
             created_at=datetime.now(timezone.utc).isoformat(),
+            usage=None,
         )
         st.session_state.stage = "researching"
         st.rerun()
@@ -73,12 +74,13 @@ elif st.session_state.stage == "researching":
         result = run_research_agent(st.session_state.session["topic"])
 
     st.session_state.session["report"] = result["report"]
-    st.session_state.usage = {
-        "input_tokens": result["input_tokens"],
-        "output_tokens": result["output_tokens"],
-        "cached_tokens": result["cached_tokens"],
-        "cost_usd": result["cost_usd"],
-    }
+    st.session_state.usage = UsageMetrics(
+        input_tokens=result["input_tokens"],
+        output_tokens=result["output_tokens"],
+        cached_tokens=result["cached_tokens"],
+        cost_usd=result["cost_usd"],
+    )
+    st.session_state.session["usage"] = st.session_state.usage
     save_session(st.session_state.session)
     st.session_state.stage = "done"
     st.rerun()
@@ -114,5 +116,23 @@ with st.sidebar:
         for s in reversed(past[-10:]):
             with st.expander(s.get("topic", "Untitled")):
                 st.caption(s.get("created_at", ""))
+                col_load, col_delete = st.columns(2)
+                with col_load:
+                    if st.button("Load", key=f"load_{s['session_id']}"):
+                        st.session_state.session = s
+                        st.session_state.usage = s.get("usage")
+                        st.session_state.stage = "done"
+                        st.rerun()
+                with col_delete:
+                    if st.button("Delete", key=f"delete_{s['session_id']}"):
+                        remaining = [x for x in past if x.get("session_id") != s["session_id"]]
+                        with open(STATE_PATH, "w") as f:
+                            json.dump(remaining, f, indent=2)
+                        current = st.session_state.session
+                        if current and current.get("session_id") == s["session_id"]:
+                            st.session_state.session = None
+                            st.session_state.stage = "topic_input"
+                            st.session_state.usage = None
+                        st.rerun()
     except (FileNotFoundError, json.JSONDecodeError):
         st.caption("No past sessions yet.")
