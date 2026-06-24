@@ -1,0 +1,14 @@
+# Environment
+config/.env
+
+# Virtual environment
+.venv/
+
+# Session state (local data, not for sharing)
+state/*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.DS_Store
