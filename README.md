@@ -6,6 +6,19 @@ specific principles found in research, not generic AI feedback.
 
 Live Demo: coming soon (deploy to Streamlit Cloud) · Built with Claude + Streamlit
 
+## Screenshots
+
+| Topic input | Research report |
+|---|---|
+| ![Topic input screen](docs/app-current.png) | ![Research report view](docs/app-learn.png) |
+
+<details>
+<summary>Design prototype (early layout reference)</summary>
+
+![Design prototype](docs/design-prototype.png)
+
+</details>
+
 ## Current state
 
 | Feature | Status |
