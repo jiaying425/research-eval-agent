@@ -10,7 +10,7 @@ Live Demo: coming soon (deploy to Streamlit Cloud) · Built with Claude + Stream
 
 | Topic input | Research report |
 |---|---|
-| ![Topic input screen](docs/app-current.png) | ![Research report view](docs/app-learn.png) |
+| ![Topic input screen](docs/screenshot-topic-input.png) | ![Research report view](docs/screenshot-research-report.png) |
 
 <details>
 <summary>Design prototype (early layout reference)</summary>
