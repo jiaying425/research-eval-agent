@@ -1,9 +1,10 @@
 import json
+import re
 
 import anthropic
 from rich.console import Console
 
-from src.prompts import SYSTEM_PROMPT
+from src.prompts import EVAL_SYSTEM_PROMPT, SCENARIO_GEN_PROMPT, SYSTEM_PROMPT
 from src.tools import TOOL_SCHEMAS, fetch_page, search_web
 
 console = Console()
@@ -173,6 +174,118 @@ def run_research_agent(topic: str) -> dict:
         "cached_tokens": total_cached_tokens,
         "cost_usd": cost,
     }
+
+
+def run_eval_turn(eval_messages: list) -> dict:
+    """Send one turn in the eval conversation and return feedback + token usage.
+
+    eval_messages is the full conversation so far. The first message must embed
+    the research report so Claude has scenario context; subsequent turns are just
+    the user's revisions or next-scenario responses.
+    """
+    client = anthropic.Anthropic()
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        system=[
+            {
+                "type": "text",
+                "text": EVAL_SYSTEM_PROMPT,
+                "cache_control": {"type": "ephemeral"},
+            }
+        ],
+        messages=eval_messages,
+    )
+
+    usage = response.usage
+    cached = getattr(usage, "cache_read_input_tokens", 0) or 0
+    cost = _estimate_cost(usage.input_tokens, usage.output_tokens, cached)
+
+    feedback = ""
+    for block in response.content:
+        if hasattr(block, "text"):
+            feedback = block.text
+            break
+
+    console.print(
+        f"  [dim]eval — in: {usage.input_tokens}, out: {usage.output_tokens}, cached: {cached}[/dim]"
+    )
+
+    return {
+        "feedback": feedback,
+        "input_tokens": usage.input_tokens,
+        "output_tokens": usage.output_tokens,
+        "cached_tokens": cached,
+        "cost_usd": cost,
+    }
+
+
+def generate_scenarios(report_body: str, user_context: str) -> list[dict]:
+    """Generate 3 personalized scenarios from the research body and the user's context."""
+    client = anthropic.Anthropic()
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        system=[{"type": "text", "text": SCENARIO_GEN_PROMPT}],
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Research report:\n\n{report_body[:4000]}\n\n"
+                f"---\n\nUser's context:\n{user_context}"
+            ),
+        }],
+    )
+
+    text = next((b.text for b in response.content if hasattr(b, "text")), "")
+    cleaned = re.sub(r"^```json\s*", "", text.strip(), flags=re.MULTILINE)
+    cleaned = re.sub(r"\s*```\s*$", "", cleaned.strip(), flags=re.MULTILINE)
+
+    try:
+        scenarios = json.loads(cleaned)
+        return [{**s, "tailored": True} for s in scenarios]
+    except json.JSONDecodeError:
+        console.print(f"[red]Failed to parse scenarios JSON:[/red] {cleaned[:200]}")
+        return []
+
+
+def run_structured_eval(scenario: dict, user_response: str, report_body: str) -> dict:
+    """Evaluate a user's response to one scenario and return a structured result dict."""
+    client = anthropic.Anthropic()
+
+    prompt = (
+        f"Research context:\n{report_body[:3000]}\n\n"
+        f"---\n\n"
+        f"Scenario: {scenario.get('title', '')}\n"
+        f"{scenario.get('description', '')}\n"
+        f"Question: {scenario.get('question', '')}\n\n"
+        f"---\n\n"
+        f"User's response:\n{user_response}"
+    )
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=1024,
+        system=[{"type": "text", "text": EVAL_SYSTEM_PROMPT, "cache_control": {"type": "ephemeral"}}],
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    text = next((b.text for b in response.content if hasattr(b, "text")), "")
+
+    result: dict = {"score": 7, "concept_use": "Moderate", "to_improve": 1, "feedback": text}
+
+    if m := re.search(r"SCORE:\s*(\d+)", text):
+        result["score"] = int(m.group(1))
+    if m := re.search(r"CONCEPT_USE:\s*(\w+)", text):
+        result["concept_use"] = m.group(1).capitalize()
+    if m := re.search(r"TO_IMPROVE:\s*(\d+)", text):
+        result["to_improve"] = int(m.group(1))
+    if m := re.search(r"FEEDBACK:\s*(.*)", text, re.DOTALL):
+        result["feedback"] = m.group(1).strip()
+
+    console.print(f"  [dim]eval — score: {result['score']}/10, concept use: {result['concept_use']}[/dim]")
+    return result
 
 
 def _estimate_cost(input_tokens: int, output_tokens: int, cached_tokens: int) -> float:

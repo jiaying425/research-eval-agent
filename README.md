@@ -14,14 +14,14 @@ Live Demo: coming soon (deploy to Streamlit Cloud) · Built with Claude + Stream
 | Token usage + cost display | ✅ Working |
 | Session saving (JSON) | ✅ Saves after every run |
 | Sidebar: past session titles | ✅ Shows last 10 |
-| Load / resume a past session | ⚠️ Not yet — sidebar is display-only |
-| Scenario-based eval loop (in-app) | ⚠️ System prompt generates scenarios, but UI has no response input; eval appears in the report text only |
+| Load / resume a past session | ✅ Load button restores full session state |
+| Scenario-based eval loop (in-app) | ✅ Full 5-stage UI: research → context → practice → eval |
 
 ## What it does
 
 1. **Research** — searches the web for a topic, synthesises a cited summary with frameworks and context
-2. **Practice** *(in progress)* — system prompt generates scenarios that test specific principles through application, not recall; in-app response input not yet built
-3. **Evaluate** *(in progress)* — evaluation rubric is grounded in the researched principles; the revise-and-resubmit loop is planned for the UI
+2. **Practice** — presents scenarios that test specific principles through application (not recall); optionally tailored to your real context
+3. **Evaluate** — scores your response against principles found in research, not generic feedback; evaluation is structured and cites back to named concepts
 
 
 
@@ -109,16 +109,16 @@ The UI displays exact token counts and an estimated cost after every run.
 
 ## Roadmap
 
-- [ ] **Scenario eval loop in UI** — add a response input after the report so users can engage with scenarios; evaluate each response against the researched principles; hold position until the user revises
-- [ ] **Load past sessions** — clicking a sidebar entry should restore the full report, not just show the title
+- [x] **Scenario eval loop in UI** — full 5-stage flow with in-app response input and structured evaluation
+- [x] **Load past sessions** — sidebar Load button restores the full session including report and scenario progress
+- [ ] **Revise and re-evaluate** — let the user revise their response and get re-scored before advancing
 - [ ] **Persistent memory across sessions** — carry prior research context forward
 - [ ] **Notion MCP integration** — push sessions to Notion for longer-term reference
 - [ ] **Multi-topic comparison view**
 
 ## Known limitations
 
-- Eval loop exists in the system prompt but the UI is one-shot — Claude writes scenarios into the report, but there is no in-app way to respond and get evaluated yet
-- Sidebar past sessions are display-only; clicking a topic does not reload the report
+- Revise-and-resubmit loop is not yet built — users advance after one evaluation attempt
 - Web search quality varies — some sources restate primary content rather than providing independent evidence; the agent flags this where detectable
 - Single topic per run; no cross-topic comparison yet
 
