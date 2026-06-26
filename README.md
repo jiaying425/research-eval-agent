@@ -54,6 +54,8 @@ Improve through evaluated revision → Articulate & Present
 
 ## Architecture
 
+![Architecture diagram](docs/architecture.png)
+
 | Component | Role |
 |---|---|
 | **Model** | Claude Sonnet 4.6 — reasoning, research synthesis, evaluation |
